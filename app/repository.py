@@ -1,30 +1,41 @@
 import os
 from datetime import datetime, timezone
-from typing import Optional, Protocol, Any, Mapping
+from typing import Any, Mapping, Optional, Protocol
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from app.domain import Task, TaskStatus, TaskPriority
+
+from .domain import Task, TaskPriority, TaskStatus
 
 
 class TaskRepository(Protocol):
     def find_all(self, status: Optional[TaskStatus] = None) -> list[Task]: ...
-    def find_by_id(self, task_id: str) -> list[Task]: ...
+    def find_by_id(self, task_id: str) -> Optional[Task]: ...
     def update_status(self, task_id: str, status: TaskStatus) -> Optional[Task]: ...
 
-class MySqlRepository:
-    """
-    Persists the tasks in mysql database and exposes the application repositories
-    """
+class SqliteTaskRepository:
+    """Persists tasks in a local SQLite database."""
 
     def __init__(self, engine: Engine | None = None):
         if engine is not None:
             self.engine = engine
             return
-        database_url = os.getenv("DATABASE_URL")
-        if not database_url:
-            raise RuntimeError("database url is not configured!")
+        database_url = os.getenv("DATABASE_URL", "sqlite:///./task_review.db")
+        self.engine = create_engine(database_url)
+        self._create_table()
 
-        self.engine = create_engine(database_url, pool_pre_ping=True)
+    def _create_table(self) -> None:
+        with self.engine.begin() as connection:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    priority TEXT NOT NULL CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+                    status TEXT NOT NULL CHECK (status IN ('NEW', 'IN_PROGRESS', 'COMPLETED')),
+                    created_at TEXT NOT NULL
+                )
+            """))
 
     def find_all(self, status: Optional[TaskStatus] = None) -> list[Task]:
         query = "SELECT id, title, description, priority, status, created_at FROM tasks"
@@ -40,7 +51,7 @@ class MySqlRepository:
             return [_task_from_rows(dict(row)) for row in rows]
 
 
-    def find_by_id(self, task_id: str) -> Task:
+    def find_by_id(self, task_id: str) -> Optional[Task]:
         query = "SELECT id, title, description, priority, status, created_at FROM tasks WHERE id = :id"
         with self.engine.connect() as connection:
             row = connection.execute(text(query), {"id": task_id}).mappings().first()
@@ -69,8 +80,8 @@ def _task_from_rows(data: Mapping[str, Any]) -> Task:
         id=data["id"],
         title=data["title"],
         description=data["description"],
-        priority=data["priority"],
-        status=data["status"],
+        priority=TaskPriority(data["priority"]),
+        status=TaskStatus(data["status"]),
         createdAt=data["created_at"]
     )
 
