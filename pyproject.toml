@@ -1,0 +1,5 @@
+[tool.pyright]
+include = ["app", "tests"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "basic"
