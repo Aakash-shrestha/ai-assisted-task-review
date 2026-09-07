@@ -45,8 +45,8 @@ class GeminiService:
                 )
 
                 response.raise_for_status()
-                content = response.json()["candidate"][0]["content"]["parts"][0]["text"]
-                return TaskAnalysis.model_validate(json.loads(content))
+                content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+                return TaskAnalysis.model_validate(json.loads(content)) # protects the application from blindly trusting whatever response ai provides, it should only be of type TaskAnalysis
 
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as error:
             raise AiProviderError(
