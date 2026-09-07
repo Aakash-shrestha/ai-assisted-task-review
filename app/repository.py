@@ -13,16 +13,18 @@ class TaskRepository(Protocol):
     def find_by_id(self, task_id: str) -> Optional[Task]: ...
     def update_status(self, task_id: str, status: TaskStatus) -> Optional[Task]: ...
 
+
 class SqliteTaskRepository:
     """Persists tasks in a local SQLite database."""
 
     def __init__(self, engine: Engine | None = None):
         if engine is not None:
             self.engine = engine
-            return
-        database_url = os.getenv("DATABASE_URL", "sqlite:///./task_review.db")
-        self.engine = create_engine(database_url)
+        else:
+            database_url = os.getenv("DATABASE_URL", "sqlite:///./task_review.db")
+            self.engine = create_engine(database_url)
         self._create_table()
+        self._seed_tasks()
 
     def _create_table(self) -> None:
         with self.engine.begin() as connection:
@@ -37,6 +39,26 @@ class SqliteTaskRepository:
                 )
             """))
 
+    def _seed_tasks(self) -> None:
+        with self.engine.begin() as connection:
+            for task in seed_tasks():
+                connection.execute(
+                    text("""
+                        INSERT OR IGNORE INTO tasks
+                            (id, title, description, priority, status, created_at)
+                        VALUES
+                            (:id, :title, :description, :priority, :status, :created_at)
+                    """),
+                    {
+                        "id": task.id,
+                        "title": task.title,
+                        "description": task.description,
+                        "priority": task.priority.value,
+                        "status": task.status.value,
+                        "created_at": task.createdAt.isoformat(),
+                    },
+                )
+
     def find_all(self, status: Optional[TaskStatus] = None) -> list[Task]:
         query = "SELECT id, title, description, priority, status, created_at FROM tasks"
         parameters: dict[str, str] = {}
@@ -45,7 +67,7 @@ class SqliteTaskRepository:
             query += " WHERE status = :status"
             parameters["status"] = status.value
 
-        query += " ORDER by created_at DESC"
+        query += " ORDER BY created_at DESC"
         with self.engine.connect() as connection:
             rows = connection.execute(text(query), parameters).mappings()
             return [_task_from_rows(dict(row)) for row in rows]
@@ -74,7 +96,6 @@ class SqliteTaskRepository:
             return _task_from_rows(dict(row)) if row else None
 
 
-
 def _task_from_rows(data: Mapping[str, Any]) -> Task:
     return Task(
         id=data["id"],
@@ -82,8 +103,9 @@ def _task_from_rows(data: Mapping[str, Any]) -> Task:
         description=data["description"],
         priority=TaskPriority(data["priority"]),
         status=TaskStatus(data["status"]),
-        createdAt=data["created_at"]
+        createdAt=data["created_at"],
     )
+
 
 def seed_tasks() -> list[Task]:
     return [

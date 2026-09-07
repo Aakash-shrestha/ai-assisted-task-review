@@ -1,13 +1,14 @@
-from app.ai_service import GeminiService
-from app.domain import Task, TaskAnalysis, TaskStatus
-from app.repository import TaskRepository
+from .ai_service import AiService
+from .domain import Task, TaskAnalysis, TaskStatus
+from .repository import TaskRepository
 
 
 class TaskNotFoundError(Exception):
     pass
 
+
 class TaskService:
-    def __init__(self, repository: TaskRepository, ai_service: GeminiService):
+    def __init__(self, repository: TaskRepository, ai_service: AiService):
         self.repository = repository
         self.ai_service = ai_service
 
@@ -15,7 +16,7 @@ class TaskService:
         return self.repository.find_all(status)
 
     def update_status(self, task_id: str, status: TaskStatus) -> Task:
-        task =  self.repository.update_status(task_id, status)
+        task = self.repository.update_status(task_id, status)
         if task is None:
             raise TaskNotFoundError(f"Task with ID {task_id} not found.")
         return task

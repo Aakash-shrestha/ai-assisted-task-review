@@ -1,16 +1,23 @@
-import os
-import httpx
-from app.domain import Task, TaskAnalysis
 import json
+import os
+from typing import Protocol
+
+import httpx
+
+from .domain import Task, TaskAnalysis
 
 class AiProviderError(Exception):
     pass
 
+
+class AiService(Protocol):
+    async def analyse(self, task: Task) -> TaskAnalysis: ...
+
+
 class GeminiService:
-    """
-    Adapter for gemini api
-    """
-    def __init__(self, api_key: str|None = None, model: str|None = None):
+    """Adapter for the Gemini API."""
+
+    def __init__(self, api_key: str | None = None, model: str | None = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
@@ -46,7 +53,7 @@ class GeminiService:
 
                 response.raise_for_status()
                 content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-                return TaskAnalysis.model_validate(json.loads(content)) # protects the application from blindly trusting whatever response ai provides, it should only be of type TaskAnalysis
+                return TaskAnalysis.model_validate(json.loads(content))
 
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as error:
             raise AiProviderError(

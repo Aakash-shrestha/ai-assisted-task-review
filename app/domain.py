@@ -26,3 +26,6 @@ class TaskAnalysis(BaseModel):
     priority: TaskPriority
     summary: str = Field(min_length=1)
     recommendedAction: str = Field(min_length=1)
+
+class StatusUpdate(BaseModel):
+    status: TaskStatus
