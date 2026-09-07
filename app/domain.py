@@ -20,3 +20,9 @@ class Task(BaseModel):
     priority: TaskPriority
     status: TaskStatus
     createdAt: datetime
+
+class TaskAnalysis(BaseModel):
+    category: str = Field(min_length=1)
+    priority: TaskPriority
+    summary: str = Field(min_length=1)
+    recommendedAction: str = Field(min_length=1)
