@@ -23,11 +23,34 @@ npm run dev
 
 Open `http://localhost:5173`. The API is at `http://localhost:3000`. Run `pytest` for backend tests. The frontend can be production-built with `cd client && npm run build`.
 
+## Testing
+
+Run the backend tests from the project root:
+
+```bash
+PYTHONPATH=. .venv/bin/pytest -q
+```
+
+The test suite checks task filtering, valid status updates, rejection of invalid statuses, and safe handling of AI provider failures. You should see four passing tests.
+
+To verify that the frontend compiles successfully for production:
+
+```bash
+cd client
+npm run build
+```
+
 ## Technologies and approach
 
 The backend is Python with FastAPI, Pydantic, SQLAlchemy, SQLite, HTTPX, and pytest. The frontend is React, Vite, and TypeScript. Tasks are stored in a local SQLite database. The backend uses a layered design: FastAPI routes handle HTTP concerns, `TaskService` owns use cases, `TaskRepository` defines the storage contract, `SqliteTaskRepository` owns persistence, and `GeminiService` is the provider adapter.
 
 Analysis uses a real Gemini API request. The API key and model come from environment variables and are never committed. The model is instructed to return JSON, and Pydantic validates the response before it reaches the frontend. Missing credentials, provider errors, malformed JSON, and invalid model output become a safe `503` response.
+
+## Incoming tasks
+
+For this assessment, incoming tasks are represented by sample records seeded into the local SQLite database when it is first created. These records provide tasks for the operations user to review through the task list, filter by status, update, and analyse with AI.
+
+A production version could receive incoming tasks through a `POST /tasks` endpoint, a message queue, a scheduled import, or an integration with an upstream operations system. A separate task-ingestion system was not added because it is outside the scope of this assessment.
 
 ## What I would improve
 
@@ -42,5 +65,5 @@ GitHub Copilot CLI was used to reason about the architecture, implementation, an
 - Name: Aakash Shrestha
 - GitHub Repository: `https://github.com/Aakash-shrestha/ai-assisted-task-review`
 - Backend Language: Python / FastAPI
-- LLM Provider / Mock Used: Gemini API (`GEMINI_MODEL`, default `gemini-2.5-flash`)
-- Approximate Time Spent: _Fill in before submission_
+- LLM Provider / Mock Used: Gemini API (`GEMINI_MODEL`, default `gemini-3.6-flash`)
+- Approximate Time Spent: approx. 9 hours

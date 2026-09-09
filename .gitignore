@@ -4,6 +4,8 @@ client/dist/
 __pycache__/
 .pytest_cache/
 *.py[cod]
+*.tsbuildinfo
 .venv/
 .env
+*.db
 LEARNING_GUIDE.md
