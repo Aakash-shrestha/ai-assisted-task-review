@@ -42,7 +42,21 @@ npm run build
 
 ## Technologies and approach
 
-The backend is Python with FastAPI, Pydantic, SQLAlchemy, SQLite, HTTPX, and pytest. The frontend is React, Vite, and TypeScript. Tasks are stored in a local SQLite database. The backend uses a layered design: FastAPI routes handle HTTP concerns, `TaskService` owns use cases, `TaskRepository` defines the storage contract, `SqliteTaskRepository` owns persistence, and `GeminiService` is the provider adapter.
+The backend is Python with FastAPI, Pydantic, SQLAlchemy, SQLite, HTTPX, and pytest. The frontend is React, Vite, and TypeScript. Tasks are stored in a local SQLite database.
+
+The backend uses a layered architecture:
+
+- **Routes/controllers:** FastAPI endpoints handle HTTP requests, validation, status codes, and response formatting. This keeps HTTP-specific concerns out of the business logic.
+- **Service layer:** `TaskService` contains the application use cases, such as listing tasks, updating a status, and requesting an analysis. This gives the main workflows one clear place to live.
+- **Repository pattern:** `TaskRepository` defines the operations the application needs from storage, while `SqliteTaskRepository` contains the SQLite and SQLAlchemy code. This separates persistence details from the rest of the application and makes a different database easier to add later.
+- **Dependency injection:** `create_app()` receives optional repository and AI-service implementations and injects them into `TaskService`. The production application receives `SqliteTaskRepository` and `GeminiService`; tests inject an isolated SQLite repository and fake AI services. This avoids hard-coded dependencies and makes tests deterministic without calling the real Gemini API.
+- **Dependency inversion and protocols:** `TaskService` depends on the `TaskRepository` and `AiService` interfaces rather than concrete implementations. The service therefore depends on what an object can do, not on how it does it, which improves maintainability and testability.
+- **Adapter pattern:** `GeminiService` adapts the external Gemini HTTP API to the application's small `AiService` interface. Provider-specific request formats and errors remain isolated from the service and routes.
+- **Application factory:** `create_app()` builds and configures the FastAPI application. This allows tests to create separate application instances with controlled dependencies instead of relying on global state.
+- **Schema validation:** Pydantic models and enums validate incoming status values and AI responses at the application boundary. Invalid data is rejected early, and the rest of the application can work with predictable structures.
+- **Error translation:** Provider failures are converted into a controlled `503 Service Unavailable` response, while unknown tasks return `404`. This gives the frontend useful errors without exposing provider implementation details.
+
+These choices keep each part focused, make the code easier to explain and test, and provide a reasonable foundation for extending the application without adding unnecessary complexity for this assessment.
 
 Analysis uses a real Gemini API request. The API key and model come from environment variables and are never committed. The model is instructed to return JSON, and Pydantic validates the response before it reaches the frontend. Missing credentials, provider errors, malformed JSON, and invalid model output become a safe `503` response.
 
